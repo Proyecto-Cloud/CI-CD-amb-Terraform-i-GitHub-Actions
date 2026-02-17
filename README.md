@@ -1,5 +1,5 @@
 # CI/CD amb Terraform i GitHub Actions
-
+aaaaa
 Aquest projecte implementa un flux **CI/CD bàsic** per desplegar infraestructura a **AWS** utilitzant **Terraform** i **GitHub Actions**, seguint bones pràctiques de treball en equip.
 
 ## Objectiu
