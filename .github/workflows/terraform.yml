@@ -1,41 +1,74 @@
+
 name: Terraform CI/CD
+#Se acciona cuando se intenta hacer un pull request a la rama main
 on:
   pull_request:
     branches: [ "main" ]
 
 jobs:
+  # Define en que versión de ubuntu se va a ejecutar el job
   terraform:
     runs-on: ubuntu-latest
-
+  # Define el directorio de trabajo de ejecución de los comandos de terraform
     defaults:
       run:
         working-directory: terraform
+    # Define los pasos a seguir para ejecutar el pipeline 
 
     steps:
-      - name: Checkout repository
+      - name: Clonar repositorio # En la MV temporal 
         uses: actions/checkout@v4
-
-      - name: Setup Terraform
+      # Configurar Terraform con la versión especificada
+      - name: Configurar Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.14.5
-
-      - name: Configure AWS credentials
+      # Configurar las credenciales de AWS utilizando los secretos almacenados en GitHub
+      - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
-
+      # Ejecutar los comandos de Terraform para inicializar, formatear, validar y planificar la infraestructura
+      # La PR falla si el código está mal formateado o erroneo)
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Format Check
+      - name: Terraform checkeo de formato
         run: terraform fmt -check
 
       - name: Terraform Validate
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -no-color
+        run: terraform plan -no-color > plan_logs.txt # Mejora legibilidad logs y los guarda en un archivo
+                                        # Se guarda dentro de la carpeta terraform
+      - name: Comenmtario del plan de Terraform en la PR
+        # Solo se ejecute si es una PR
+        if: github.event_name == 'pull_request' 
+        uses: actions/github-script@v7 # Script de acceso a la API de GitHub
+        with: 
+          # Script de javascipt que lee y comenta
+          # JavaSript
+          script: |
+            # Modulo para leer el archivo de plan
+            const fs = require('fs'); 
+            # Lee el contenido del archivo de plan
+            const plan = fs.readFileSync('terraform/plan_logs.txt', 'utf8'); 
+
+            # Formatea el cuerpo del comentario con el plan de Terraform
+            const body = `### Terraform Plan\n\`\`\`\n${plan}\n\`\`\``;
+
+            # Llamamos a la API dwe github
+            github.rest.issues.createComment({
+              # PR actual
+              issue_number: context.payload.pull_request.number,
+              # Dueño del repositorio actual
+              owner: context.repo.owner,
+              # Repositorio actual
+              repo: context.repo.repo,
+              # El comentario
+              body: body
+            });
