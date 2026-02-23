@@ -3,3 +3,7 @@
 data "aws_availability_zones" "available" {
   state = "available"
 }
+
+# git add .
+# git commit -m "Fix formatting"
+# git push
