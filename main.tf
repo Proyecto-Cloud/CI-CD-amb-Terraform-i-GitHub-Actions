@@ -21,6 +21,8 @@ locals {
   private_cidrs = {
     for i, az in local.azs : az => cidrsubnet("10.0.0.0/16", 8, 100 + i)    # 10.0.100.0/24, 10.0.101.0/24
   }
+
+  first_az = local.azs[0]
 }
 
 # ---------- VPC ----------
@@ -78,4 +80,137 @@ resource "aws_route_table_association" "public" {
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags = { Name = "${var.cluster_name}-nat-eip" }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[local.first_az].id
+
+  depends_on = [aws_internet_gateway.igw]
+
+  tags = { Name = "${var.cluster_name}-nat" }
+}
+
+# Subnets privades: 1 per AZ
+resource "aws_subnet" "private" {
+  for_each = local.private_cidrs
+
+  vpc_id                  = aws_vpc.this.id
+  availability_zone       = each.key
+  cidr_block              = each.value
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name = "${var.cluster_name}-private-${each.key}"
+    "kubernetes.io/role/internal-elb" = "1"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+  }
+}
+
+# Route table privada + default route a NAT
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.this.id
+  tags = { Name = "${var.cluster_name}-rt-private" }
+}
+
+resource "aws_route" "private_nat" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat.id
+}
+
+resource "aws_route_table_association" "private" {
+  for_each = aws_subnet.private
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private.id
+}
+
+output "vpc_id" {
+  value = aws_vpc.this.id
+}
+
+output "public_subnets" {
+  value = [for s in aws_subnet.public : s.id]
+}
+
+output "private_subnets" {
+  value = [for s in aws_subnet.private : s.id]
+}
+
+resource "aws_eks_cluster" "this" {
+  name     = var.cluster_name
+  role_arn = data.aws_iam_role.eks_cluster_role.arn
+
+  vpc_config {
+    subnet_ids = concat(
+      [for s in aws_subnet.public : s.id],
+      [for s in aws_subnet.private : s.id]
+    )
+    security_group_ids      = [aws_security_group.eks_control_plane.id]
+    endpoint_public_access  = true
+    endpoint_private_access = true
+  }
+}
+
+resource "aws_eks_node_group" "workers" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "workers"
+  node_role_arn   = data.aws_iam_role.eks_node_role.arn
+  subnet_ids      = [for s in aws_subnet.private : s.id]
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 3
+  }
+
+  instance_types = ["t3.medium"]
+}
+
+resource "aws_security_group" "eks_control_plane" {
+  name        = "${var.cluster_name}-eks-cp-sg"
+  description = "EKS control plane security group"
+  vpc_id      = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.cluster_name}-eks-cp-sg"
+  }
+}
+
+resource "aws_security_group_rule" "eks_api_from_me" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.eks_control_plane.id
+  cidr_blocks       = ["0.0.0.0/0"] # Allow everywhere to avoid issues
+  description       = "Allow kubectl from my IP"
+}
+
+resource "aws_security_group_rule" "eks_api_from_nodes" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.eks_control_plane.id
+  cidr_blocks       = [for s in aws_subnet.private : s.cidr_block]
+  description       = "Allow worker nodes to reach API"
+}
+
+resource "aws_security_group_rule" "eks_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  security_group_id = aws_security_group.eks_control_plane.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "eks_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  security_group_id = aws_security_group.eks_control_plane.id
+  cidr_blocks       = ["0.0.0.0/0"]
 }
