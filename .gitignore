@@ -1,0 +1,10 @@
+# Archivos locales de Terraform (NO SUBIR NUNCA)
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Credenciales y claves (SEGURIDAD)
+*.pem
+.env
+.DS_Store
