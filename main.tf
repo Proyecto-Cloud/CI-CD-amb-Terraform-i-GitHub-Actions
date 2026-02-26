@@ -329,7 +329,6 @@ resource "aws_security_group_rule" "eks_api_from_nodes" {
 }
 
 # Salida total desde el control plane SG (egress any/any).
-# Normal en muchos ejemplos/labs; en producción se endurece según necesidades.
 resource "aws_security_group_rule" "eks_egress_all" {
   type              = "egress"
   from_port         = 0
