@@ -44,3 +44,8 @@ variable "key_name" {
   description = "SSH Key_Name"
   default     = "vockey"
 }
+
+variable "dummy" {
+    type = string
+    default = "value"
+}
