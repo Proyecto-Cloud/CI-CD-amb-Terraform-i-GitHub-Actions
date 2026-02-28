@@ -40,6 +40,6 @@ variable "cluster_name" {
 }
 
 variable "dummy" {
-  type = string
-  default "prueba"
+  type    = string
+  default = "prueba"
 }
