@@ -6,17 +6,13 @@
 # ============================================================
 
 
-# -------------------------
-# DATA (lecturas de AWS)
-# -------------------------
-
+# ---------- DATA ----------
 # Lista de Availability Zones disponibles en la región configurada
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
 # Busca roles IAM existentes cuyo nombre contenga "LabEksClusterRole"
-# (Se asume que esos roles ya existen por la práctica/lab)
 data "aws_iam_roles" "cluster_roles" {
   name_regex = ".*LabEksClusterRole.*"
 }
@@ -26,10 +22,7 @@ data "aws_iam_roles" "node_roles" {
   name_regex = ".*LabEksNodeRole.*"
 }
 
-
-# -------------------------
-# LOCALS (cálculos internos)
-# -------------------------
+# ---------- LOCALS (cálculos internos) ----------
 locals {
   # Selecciona solo 2 AZs para no crear demasiadas subnets (y evitar límites/cuotas).
   # Nota: en producción se suele usar 2–3 AZs según resiliencia/coste.
@@ -62,10 +55,7 @@ locals {
   first_az = local.azs[0]
 }
 
-
-# -------------------------
-# VPC
-# -------------------------
+# ---------- VPC ----------
 resource "aws_vpc" "main" {
   # Rango CIDR de la VPC (viene por variable)
   cidr_block = var.vpc_cidr
@@ -77,9 +67,7 @@ resource "aws_vpc" "main" {
 }
 
 
-# -------------------------
-# SUBNETS PÚBLICAS
-# -------------------------
+# ---------- SUBNETS PÚBLICAS ----------
 resource "aws_subnet" "public" {
   # Crea 1 subnet pública por AZ (las claves vienen de local.public_cidrs)
   for_each = local.public_cidrs
@@ -103,34 +91,29 @@ resource "aws_subnet" "public" {
   }
 }
 
-
-# -------------------------
-# INTERNET GATEWAY (salida directa a Internet)
-# -------------------------
+# ---------- INTERNET GATEWAY ----------
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "${var.cluster_name}-igw" }
 }
 
 
-# -------------------------
-# ROUTING PÚBLICO
-# -------------------------
 
-# Tabla de rutas pública
+# ---------- ROUTING TABLES ----------
+# PUBLIC RT
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "${var.cluster_name}-rt-public" }
 }
 
-# Ruta por defecto a Internet vía IGW
+# ROUTE FROM PUBLIC SUBNET TO INTERNET VIA IGW
 resource "aws_route" "public_internet" {
   route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.igw.id
 }
 
-# Asociar la route table pública a todas las subnets públicas
+# RTA PUBLIC ROUTE - PUBLIC SUBNETS
 resource "aws_route_table_association" "public" {
   for_each       = aws_subnet.public
   subnet_id      = each.value.id
@@ -138,11 +121,8 @@ resource "aws_route_table_association" "public" {
 }
 
 
-# -------------------------
-# NAT Gateway (salida a Internet desde subnets privadas)
-# -------------------------
-
-# Elastic IP para el NAT (necesaria para que el NAT tenga IP pública fija)
+# ---------- NAT Gateway ----------
+# EIP para el NAT
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags   = { Name = "${var.cluster_name}-nat-eip" }
