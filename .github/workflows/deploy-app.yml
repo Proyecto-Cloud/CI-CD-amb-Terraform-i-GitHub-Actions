@@ -1,5 +1,6 @@
 name: Deploy App CI/CD
 
+# Las acciones que sirven como disparadores
 on:
   push:
     branches: [ "main" ]
@@ -10,27 +11,33 @@ permissions:
   contents: read
 
 jobs:
+  # Se activa en el push a main
   build-and-deploy:
+    # Define en que versión de ubuntu se va a ejecutar el job
     runs-on: ubuntu-latest
     
+    # Define los pasos a seguir para ejecutar el pipeline 
     steps:
-      - name: Clonar el repositorio
+      - name: Clonar el repositorio # En la MV temporal 
         uses: actions/checkout@v4
 
+      # Autenticarse en Docker Hub usando los secretos almacenados en GitHub
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Construir y subir la imagen de Docker usando el Dockerfile de la aplicación
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./demo-app
-          file: ./demo-app/Dockerfile
+          file: ./demo-app/Dockerfile # Se guarda dentro de la carpeta demo-app
           push: true
           tags: jsa5214/lb-demo:latest
 
+      # Configurar las credenciales de AWS utilizando los secretos almacenados en GitHub
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -39,9 +46,11 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      # Actualizar la configuración para poder comunicarse con el clúster de EKS
       - name: Actualizar Kubeconfig
         run: aws eks update-kubeconfig --region us-east-1 --name democluster
 
+      # Ejecutar comandos de Kubernetes para desplegar la app y recargarla en caso de actualización
       - name: Desplegar en Kubernetes
         run: |
           # Aplicamos los manifiestos
