@@ -6,7 +6,7 @@ variable "region" {
 
 variable "project_name" {
   type        = string
-  description = "Name of the project"
+  description = "Name of the projectAAAAAA"
   default     = "pt1-6"
 }
 
