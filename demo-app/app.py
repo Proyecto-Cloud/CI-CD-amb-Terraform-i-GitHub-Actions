@@ -215,8 +215,8 @@ HTML_TEMPLATE = """
                 </svg>
             </div>
         </div>
-        <h1>Load Balancing Demo</h1>
-        <p class="subtitle">Experience dynamic traffic distribution in real-time</p>
+        <h1>🚀 AWS EKS Load Balancing Demo</h1>
+        <p class="subtitle">Experience dynamic traffic distribution in real-time (v2)</p>
         
         <div class="stats-grid">
             <div class="stat-card">
