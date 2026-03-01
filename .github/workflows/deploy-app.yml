@@ -7,6 +7,11 @@ on:
     paths:
       - 'demo-app/**'
 
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'demo-app/**'
+
 permissions:
   contents: read
 
