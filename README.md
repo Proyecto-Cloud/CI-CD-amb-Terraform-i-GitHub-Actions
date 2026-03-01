@@ -30,9 +30,8 @@ Una aplicación web programada en **Python (Flask)**:
 
 ---
 
-```markdown
+
 ## 🚀 Flujo de trabajo (CI/CD)
-```
 
 El proyecto utiliza la estrategia *GitHub Flow*. Hay dos pipelines separados para evitar que los cambios en la web afecten a la infraestructura y viceversa:
 
