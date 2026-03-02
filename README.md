@@ -1,3 +1,5 @@
+Enlace a la presentacionÇ: https://www.canva.com/design/DAHCWO3CW2g/7iNT4P3TbEyAmkr4xNDy5A/edit?utm_content=DAHCWO3CW2g&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
 # 🚀 CI/CD con Terraform y GitHub Actions
 
 [![Terraform CI/CD](https://github.com/Proyecto-Cloud/CI-CD-amb-Terraform-i-GitHub-Actions/actions/workflows/terraform.yml/badge.svg)](https://github.com/Proyecto-Cloud/CI-CD-amb-Terraform-i-GitHub-Actions/actions/workflows/terraform.yml)
